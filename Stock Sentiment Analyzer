@@ -1,0 +1,55 @@
+import yfinance as yf
+from transformers import pipeline
+pipe = pipeline("text-classification", model="ProsusAI/finbert")
+
+def get_news(ticker):
+    stock = yf.Ticker(ticker)
+    news = stock.news
+    return news
+
+while True:
+    ticker = input("Enter a stock ticker (or q to quit): ").upper()
+    if ticker == "Q":
+        break
+    
+    neg_score = 0
+    neut_score = 0
+    pos_score = 0
+    neg_num = 0
+    neut_num = 0
+    pos_num = 0
+
+    articles = get_news(ticker)
+    for article in articles:
+        content = article["content"]
+        evaluation = pipe(content["title"])
+        label = evaluation[0]["label"]
+        score = evaluation[0]["score"]
+        if label == "negative":
+            neg_num += 1
+            neg_score += score
+        elif label == "neutral":
+            neut_num += 1
+            neut_score += score
+        else:
+            pos_num += 1
+            pos_score += score
+
+    average_negative_score = neg_score / neg_num if neg_num > 0 else 0
+    average_neutral_score = neut_score / neut_num if neut_num > 0 else 0
+    average_positive_score = pos_score / pos_num if pos_num > 0 else 0
+
+    print(f"\nPositive: {pos_num} articles, avg score: {round(average_positive_score, 2)}")
+    print(f"Negative: {neg_num} articles, avg score: {round(average_negative_score, 2)}")
+    print(f"Neutral:  {neut_num} articles, avg score: {round(average_neutral_score, 2)}")
+
+    if average_positive_score > average_negative_score and average_positive_score > average_neutral_score:
+        print(f"The market sentiment on {ticker} is POSITIVE 🟢")
+    elif average_negative_score > average_positive_score and average_negative_score > average_neutral_score:
+        print(f"The market sentiment on {ticker} is NEGATIVE 🔴")
+    elif average_neutral_score > average_negative_score and average_neutral_score > average_positive_score:
+        print(f"The market sentiment on {ticker} is NEUTRAL 🟡")
+    else:
+        print(f"The market sentiment on {ticker} is MIXED 🟠")
+    
+    print("\n")
